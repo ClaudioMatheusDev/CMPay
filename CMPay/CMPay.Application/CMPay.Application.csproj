@@ -10,7 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DTOs\Cartao\" />
+    <Folder Include="Interfaces\Cartao\" />
+    <Folder Include="Interfaces\Repositories\Cartao\" />
+    <Folder Include="Services\Cartao\" />
   </ItemGroup>
 
   <PropertyGroup>
