@@ -1,4 +1,9 @@
+using CMPay.Application.Interfaces;
+using CMPay.Application.Services;
+using CMPay.Applicatios.Interfaces;
 using CMPay.Infrastructure.Data;
+using CMPay.Infrastructure.Repositories.Cliente;
+using CMPay.Infrastructure.Repositories.Endereco;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +12,13 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+builder.Services.AddScoped<IClienteService, ClienteService>();
+builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
+
+builder.Services.AddScoped<IEnderecoService, EnderecoService>();
+builder.Services.AddScoped<IEnderecoRepository, EnderecoRepository>();
+
 
 builder.Services.AddOpenApi();
 
@@ -29,5 +41,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapControllers();
 
 app.Run();

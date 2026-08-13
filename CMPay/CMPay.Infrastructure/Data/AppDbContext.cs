@@ -7,7 +7,6 @@ namespace CMPay.Infrastructure.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-
         }
 
         public DbSet<Cartao> Cartoes { get; set; }
@@ -44,8 +43,22 @@ namespace CMPay.Infrastructure.Data
                 .WithMany(p => p.Transacoes)
                 .HasForeignKey(t => t.IDPagamento)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Pagamento>()
+                .Property(p => p.ValorBruto)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Pagamento>()
+                .Property(p => p.ValorTaxa)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Pagamento>()
+                .Property(p => p.ValorLiquido)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Transacao>()
+                .Property(t => t.Valor)
+                .HasPrecision(18, 2);
         }
-
-
     }
 }
