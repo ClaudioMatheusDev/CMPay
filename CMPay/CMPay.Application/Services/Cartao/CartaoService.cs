@@ -89,7 +89,7 @@ namespace CMPay.Application.Services
             }).ToList();
         }
 
-        public async Task<CartaoResponseDto> AtualizarClienteAsync(int IDCartao, CartaoAtualizarDto cartaoAtualizarDto)
+        public async Task<CartaoResponseDto> AtualizarCartaoAsync(int IDCartao, CartaoAtualizarDto cartaoAtualizarDto)
         {
             var cartao = await _cartaoRepository.BuscarCartaoPorIDAsync(IDCartao);
             var cliente = await _clienteRepository.BuscarPorIDAsync(cartaoAtualizarDto.IDCliente);
@@ -124,9 +124,19 @@ namespace CMPay.Application.Services
 
         }
 
-        public Task<bool> ApagarCartaoAsync(int IDCartao)
+        public async Task<bool> ApagarCartaoAsync(int IDCartao)
         {
-            throw new NotImplementedException();
+            var cartao  =  await _cartaoRepository.BuscarCartaoPorIDAsync(IDCartao);
+
+            if (cartao == null)
+            {
+                throw new Exception("Nenhum cartao encontrado com esse IDCartao.");
+            }
+
+            _cartaoRepository.Remover(cartao);
+            await _cartaoRepository.SalvarAlteracoesAsync();
+
+            return true;
         }
 
     }

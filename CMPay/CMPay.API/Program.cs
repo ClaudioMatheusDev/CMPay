@@ -2,6 +2,7 @@ using CMPay.Application.Interfaces;
 using CMPay.Application.Services;
 using CMPay.Applicatios.Interfaces;
 using CMPay.Infrastructure.Data;
+using CMPay.Infrastructure.Repositories.Cartao;
 using CMPay.Infrastructure.Repositories.Cliente;
 using CMPay.Infrastructure.Repositories.Endereco;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,10 @@ builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
 
 builder.Services.AddScoped<IEnderecoService, EnderecoService>();
 builder.Services.AddScoped<IEnderecoRepository, EnderecoRepository>();
+
+builder.Services.AddScoped<ICartaoService, CartaoService>();
+builder.Services.AddScoped<ICartaoRepository, CartaoRepository>();
+
 
 
 builder.Services.AddOpenApi();

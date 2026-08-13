@@ -8,6 +8,6 @@ namespace CMPay.Application.Interfaces
         Task<CartaoResponseDto> BuscarCartaoPorIDAsync(int IDCartao);
         Task<List<CartaoResponseDto>> BuscarTodosAsync();
         Task<bool> ApagarCartaoAsync(int IDCartao);
-        Task<CartaoResponseDto> AtualizarClienteAsync(int IDCartao, CartaoAtualizarDto cartaoAtualizarDto);
+        Task<CartaoResponseDto> AtualizarCartaoAsync(int IDCartao, CartaoAtualizarDto cartaoAtualizarDto);
     }
 }
