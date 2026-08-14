@@ -4,6 +4,6 @@
     {
         Pix = 1,
         CartaoCredito = 2,
-        CartaoDevito = 3
+        CartaoDebito = 3
     }
 }
