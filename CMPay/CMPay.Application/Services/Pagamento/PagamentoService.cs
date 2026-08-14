@@ -77,40 +77,6 @@ namespace CMPay.Application.Services
             await _pagamentoRepository.AdicionarAsync(pagamento);
             await _pagamentoRepository.SalvarAlteracoesAsync();
 
-            var transacao = new Transacao
-            {
-                IDPagamento = pagamento.IDPagamento,
-                TipoTransacao = TipoTransacao.Pagamento,
-                StatusTransacao = StatusTransacao.Processando,
-                Valor = pagamento.ValorBruto,
-                DataTransacao = DateTime.UtcNow
-            };
-
-
-            var resultado = await _processadorPagamento.ProcessarAsync(pagamento);
-
-            if (resultado.Aprovado)
-            {
-                pagamento.StatusPagamento = StatusPagamento.Aprovado;
-                pagamento.DataPagamento = DateTime.UtcNow;
-
-                transacao.StatusTransacao = StatusTransacao.Sucesso;
-            }
-            else
-            {
-                pagamento.StatusPagamento = StatusPagamento.Rejeitado;
-
-                transacao.StatusTransacao = StatusTransacao.Falha;
-            }
-
-            transacao.Mensagem = resultado.Mensagem;
-
-
-            await _transacaoRepository.AdicionarAsync(transacao);
-            await _transacaoRepository.SalvarAlteracoesAsync();
-
-
-
             return pagamento.IDPagamento;
         }
 
@@ -203,6 +169,127 @@ namespace CMPay.Application.Services
 
                 Transacoes = transacoesDto
             };
+        }
+
+        public async Task<bool> EstornarPagamentoAsync(int IDPagamento)
+        {
+            var pagamento = await _pagamentoRepository.BuscarPorIDAsync(IDPagamento);
+
+            if (pagamento is null)
+            {
+                throw new Exception("Nenhum pagamento foi encontrado para esse ID.");
+            }
+
+            if (pagamento.StatusPagamento != StatusPagamento.Aprovado)
+            {
+                throw new Exception("Somente pagamentos aprovados podem ser estornados.");
+            }
+
+            pagamento.StatusPagamento = StatusPagamento.Reembolsado;
+            pagamento.DataEstorno = DateTime.UtcNow;
+
+
+            var transacao = new Transacao
+            {
+                IDPagamento = pagamento.IDPagamento,
+                TipoTransacao = TipoTransacao.Reembolso,
+                StatusTransacao = StatusTransacao.Sucesso,
+                Valor = pagamento.ValorBruto,
+                DataTransacao = DateTime.UtcNow,
+                Mensagem = "Pagamento Estornado com sucesso."
+            };
+
+
+            await _transacaoRepository.AdicionarAsync(transacao);
+            await _transacaoRepository.SalvarAlteracoesAsync();
+
+
+
+            return true;
+        }
+
+        public async Task<bool> ProcessarPagamentoAsync(int IDPagamento)
+        {
+
+            var pagamento = await _pagamentoRepository.BuscarPorIDAsync(IDPagamento);
+
+            if (pagamento is null)
+            {
+                throw new Exception("Nenhum pagamento foi encontrado para esse ID.");
+            }
+
+            if (pagamento.StatusPagamento != StatusPagamento.Pendente)
+            {
+                throw new Exception("Somente pagamentos pendentes podem ser processados.");
+            }
+
+            var transacao = new Transacao
+            {
+                IDPagamento = pagamento.IDPagamento,
+                TipoTransacao = TipoTransacao.Pagamento,
+                StatusTransacao = StatusTransacao.Processando,
+                Valor = pagamento.ValorBruto,
+                DataTransacao = DateTime.UtcNow
+            };
+
+
+            var resultado = await _processadorPagamento.ProcessarAsync(pagamento);
+
+            if (resultado.Aprovado)
+            {
+                pagamento.StatusPagamento = StatusPagamento.Aprovado;
+                pagamento.DataPagamento = DateTime.UtcNow;
+
+                transacao.StatusTransacao = StatusTransacao.Sucesso;
+            }
+            else
+            {
+                pagamento.StatusPagamento = StatusPagamento.Rejeitado;
+
+                transacao.StatusTransacao = StatusTransacao.Falha;
+            }
+
+            transacao.Mensagem = resultado.Mensagem;
+
+
+            await _transacaoRepository.AdicionarAsync(transacao);
+            await _transacaoRepository.SalvarAlteracoesAsync();
+
+            return true;
+        }
+
+        public async Task<bool> CancelarPagamentoAsync(int IDPagamento)
+        {
+            var pagamento = await _pagamentoRepository.BuscarPorIDAsync(IDPagamento);
+
+            if (pagamento is null)
+            {
+                throw new Exception("Nenhum pagamento foi encontrado para esse ID.");
+            }
+
+            if (pagamento.StatusPagamento != StatusPagamento.Pendente)
+            {
+                throw new Exception("Somente pagamentos pendentes podem ser cancelados.");
+            }
+
+            pagamento.StatusPagamento = StatusPagamento.Cancelado;
+            pagamento.DataCancelamento = DateTime.UtcNow;
+
+            var transacao = new Transacao
+            {
+                IDPagamento = pagamento.IDPagamento,
+                TipoTransacao = TipoTransacao.Cancelamento,
+                StatusTransacao = StatusTransacao.Sucesso,
+                Valor = pagamento.ValorBruto,
+                DataTransacao = DateTime.UtcNow,
+                Mensagem = "Pagamento cancelado."
+            };
+
+            await _transacaoRepository.AdicionarAsync(transacao);
+            await _transacaoRepository.SalvarAlteracoesAsync();
+
+            return true;
+
         }
     }
 }
