@@ -18,12 +18,12 @@ namespace CMPay.Application.Services
 
         public async Task<int> CriarCartaoAsync(CartaoCriarDto cartaoCriarDto)
         {
-            var clienteExiste = await _clienteRepository.BuscarPorIDAsync(cartaoCriarDto.IDCliente);
-
-            if (clienteExiste == null)
-            {
-                throw new Exception("Cliente não existe");
-            }
+            await ValidarCartaoAsync(
+                cartaoCriarDto.IDCliente,
+                cartaoCriarDto.MesExpiracao,
+                cartaoCriarDto.AnoExpiracao,
+                cartaoCriarDto.UltimosDigitos,
+                cartaoCriarDto.Padrao);
 
             var cartao = new Cartao
             {
@@ -33,6 +33,7 @@ namespace CMPay.Application.Services
                 MesExpiracao = cartaoCriarDto.MesExpiracao,
                 AnoExpiracao = cartaoCriarDto.AnoExpiracao,
                 NomeTitular = cartaoCriarDto.NomeTitular,
+                Ativo = true,
                 Padrao = cartaoCriarDto.Padrao
             };
 
@@ -92,14 +93,20 @@ namespace CMPay.Application.Services
         public async Task<CartaoResponseDto> AtualizarCartaoAsync(int IDCartao, CartaoAtualizarDto cartaoAtualizarDto)
         {
             var cartao = await _cartaoRepository.BuscarCartaoPorIDAsync(IDCartao);
-            var cliente = await _clienteRepository.BuscarPorIDAsync(cartaoAtualizarDto.IDCliente);
 
-            if (cliente == null)
+            if (cartao == null)
             {
-                throw new Exception("Nenhum cliente encontrado com esse IDCliente.");
+                throw new Exception("Não existe o cartão com esse ID.");
             }
 
-            cartao.IDCliente = cartaoAtualizarDto.IDCliente;
+            await ValidarCartaoAsync(
+                cartao.IDCliente,
+                cartaoAtualizarDto.MesExpiracao,
+                cartaoAtualizarDto.AnoExpiracao,
+                cartaoAtualizarDto.UltimosDigitos,
+                cartaoAtualizarDto.Padrao,
+                IDCartao);
+
             cartao.BandeiraCartao = cartaoAtualizarDto.BandeiraCartao;
             cartao.UltimosDigitos = cartaoAtualizarDto.UltimosDigitos;
             cartao.MesExpiracao = cartaoAtualizarDto.MesExpiracao;
@@ -112,6 +119,7 @@ namespace CMPay.Application.Services
 
             return new CartaoResponseDto
             {
+                IDCartao = cartao.IDCartao,
                 IDCliente = cartao.IDCliente,
                 BandeiraCartao = cartao.BandeiraCartao,
                 UltimosDigitos = cartao.UltimosDigitos,
@@ -119,12 +127,55 @@ namespace CMPay.Application.Services
                 AnoExpiracao = cartao.AnoExpiracao,
                 NomeTitular = cartao.NomeTitular,
                 Padrao = cartao.Padrao,
-                Ativo = cartao.Ativo
+                Ativo = cartao.Ativo,
+                DataCriacao = cartao.DataCriacao
             };
 
         }
 
-        public async Task<bool> ApagarCartaoAsync(int IDCartao)
+        private async Task ValidarCartaoAsync(
+            int idCliente,
+            int mesExpiracao,
+            int anoExpiracao,
+            string? ultimosDigitos,
+            bool padrao,
+            int? idCartaoAtual = null)
+        {
+            var clienteExiste = await _clienteRepository.BuscarPorIDAsync(idCliente);
+            Cartao? cartaoPadrao = await _cartaoRepository.BuscarCartaoPorCliente(idCliente);
+
+            int anoAtual = DateTime.UtcNow.Year;
+            int mesAtual = DateTime.UtcNow.Month;
+
+            if (clienteExiste == null)
+            {
+                throw new Exception("Cliente não existe");
+            }
+
+            if (mesExpiracao < 1 || mesExpiracao > 12)
+            {
+                throw new Exception("Mes de expiração do cartão não é valida!");
+            }
+
+            if (ultimosDigitos == null || ultimosDigitos.Length != 4 || !ultimosDigitos.All(char.IsDigit))
+            {
+                throw new Exception("O ultimos digitos devem contem 4 digitos e devem ser números!");
+            }
+
+            if (anoExpiracao < anoAtual || (anoExpiracao == anoAtual && mesExpiracao < mesAtual))
+            {
+                throw new ArgumentException("O cartão informado já está expirado.");
+            }
+
+            if (padrao &&
+                cartaoPadrao != null &&
+                cartaoPadrao.IDCartao != idCartaoAtual)
+            {
+                throw new Exception("Já existe outro cartão padrão para esse cliente.");
+            }
+        }
+
+        public async Task<bool> ApagarCartaoAsync(int IDCartao) // Metodo de desabilitar cartao
         {
             var cartao  =  await _cartaoRepository.BuscarCartaoPorIDAsync(IDCartao);
 
@@ -133,7 +184,9 @@ namespace CMPay.Application.Services
                 throw new Exception("Nenhum cartao encontrado com esse IDCartao.");
             }
 
-            _cartaoRepository.Remover(cartao);
+            cartao.Ativo = false;
+            cartao.Padrao = false;
+            
             await _cartaoRepository.SalvarAlteracoesAsync();
 
             return true;

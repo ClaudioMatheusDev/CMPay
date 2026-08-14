@@ -11,6 +11,5 @@ namespace CMPay.Application.DTOs
         public int AnoExpiracao { get; set; }
         public required string NomeTitular { get; set; }
         public bool Padrao { get; set; }
-        public bool Ativo { get; set; }
     }
 }
