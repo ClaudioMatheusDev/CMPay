@@ -1,6 +1,6 @@
 ﻿using CMPay.Application.DTOs;
 
-namespace CMPay.Applicatios.Interfaces
+namespace CMPay.Application.Interfaces
 {
     public interface IClienteService
     {

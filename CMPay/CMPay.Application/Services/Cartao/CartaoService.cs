@@ -1,4 +1,5 @@
 ﻿using CMPay.Application.DTOs;
+using CMPay.Application.Exceptions;
 using CMPay.Application.Interfaces;
 using CMPay.Domain.Entities;
 using CMPay.Domain.Enums.Cartao;
@@ -51,7 +52,7 @@ namespace CMPay.Application.Services
 
             if (cartao == null)
             {
-                throw new Exception("Nenhum cartao encontrado com esse IDCartao.");
+                throw new NotFoundException("Nenhum cartao encontrado com esse IDCartao.");
             }
 
 
@@ -96,7 +97,7 @@ namespace CMPay.Application.Services
 
             if (cartao == null)
             {
-                throw new Exception("Não existe o cartão com esse ID.");
+                throw new NotFoundException("Não existe o cartão com esse ID.");
             }
 
             await ValidarCartaoAsync(
@@ -149,29 +150,29 @@ namespace CMPay.Application.Services
 
             if (clienteExiste == null)
             {
-                throw new Exception("Cliente não existe");
+                throw new NotFoundException("Cliente não existe");
             }
 
             if (mesExpiracao < 1 || mesExpiracao > 12)
             {
-                throw new Exception("Mes de expiração do cartão não é valida!");
+                throw new BusinessException("Mes de expiração do cartão não é valida!");
             }
 
             if (ultimosDigitos == null || ultimosDigitos.Length != 4 || !ultimosDigitos.All(char.IsDigit))
             {
-                throw new Exception("O ultimos digitos devem contem 4 digitos e devem ser números!");
+                throw new BusinessException("O ultimos digitos devem contem 4 digitos e devem ser números!");
             }
 
             if (anoExpiracao < anoAtual || (anoExpiracao == anoAtual && mesExpiracao < mesAtual))
             {
-                throw new ArgumentException("O cartão informado já está expirado.");
+                throw new BusinessException("O cartão informado já está expirado.");
             }
 
             if (padrao &&
                 cartaoPadrao != null &&
                 cartaoPadrao.IDCartao != idCartaoAtual)
             {
-                throw new Exception("Já existe outro cartão padrão para esse cliente.");
+                throw new BusinessException("Já existe outro cartão padrão para esse cliente.");
             }
         }
 
@@ -181,7 +182,7 @@ namespace CMPay.Application.Services
 
             if (cartao == null)
             {
-                throw new Exception("Nenhum cartao encontrado com esse IDCartao.");
+                throw new NotFoundException("Nenhum cartao encontrado com esse IDCartao.");
             }
 
             cartao.Ativo = false;
