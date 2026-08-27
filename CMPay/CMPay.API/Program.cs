@@ -1,6 +1,6 @@
+using CMPay.API.Middleware;
 using CMPay.Application.Interfaces;
 using CMPay.Application.Services;
-using CMPay.Applicatios.Interfaces;
 using CMPay.Infrastructure.Data;
 using CMPay.Infrastructure.Pagamentos;
 using CMPay.Infrastructure.Repositories;
@@ -54,6 +54,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
