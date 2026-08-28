@@ -27,6 +27,10 @@ namespace CMPay.API.Middleware
             {
                 await WriteResponseAsync(context, StatusCodes.Status400BadRequest, ex.Message);
             }
+            catch (ConflictException ex)
+            {
+                await WriteResponseAsync(context, StatusCodes.Status409Conflict, ex.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro não tratado ao processar a requisição.");

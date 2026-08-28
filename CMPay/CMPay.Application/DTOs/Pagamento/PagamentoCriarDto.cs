@@ -8,6 +8,5 @@ namespace CMPay.Application.DTOs
         public decimal ValorBruto { get; set; }
         public TipoMoeda Moeda { get; set; }
         public TipoMetodoPagamento TipoMetodoPagamento { get; set; }
-        public string IdempotencyKey { get; set; } = null!;
     }
 }

@@ -24,9 +24,9 @@ namespace CMPay.Infrastructure.Repositories.Pagamento
             return await _context.Pagamentos.FirstOrDefaultAsync(p => p.IDPagamento == IDPagamento); 
         }
 
-        public Task<Domain.Entities.Pagamento?> BuscarPorIdempotencyKeyAsync(string idempotencyKey)
+        public Task<Domain.Entities.Pagamento?> BuscarPorIdempotencyKeyAsync(int idCliente, string idempotencyKey)
         {
-            return _context.Pagamentos.FirstOrDefaultAsync(p => p.IdempotencyKey == idempotencyKey);
+            return _context.Pagamentos.FirstOrDefaultAsync(p => p.IDCliente == idCliente && p.IdempotencyKey == idempotencyKey);
         }
 
         public async Task<List<Domain.Entities.Pagamento>> BuscarTodosAsync()

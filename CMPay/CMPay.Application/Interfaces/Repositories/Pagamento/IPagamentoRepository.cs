@@ -8,6 +8,6 @@ namespace CMPay.Application.Interfaces
         Task<List<Pagamento>> BuscarTodosAsync();
         Task AdicionarAsync(Pagamento pagamento);
         Task SalvarAlteracoesAsync();
-        Task<Pagamento?> BuscarPorIdempotencyKeyAsync(string idempotencyKey);
+        Task<Pagamento?> BuscarPorIdempotencyKeyAsync(int idCliente, string idempotencyKey);
     }
 }

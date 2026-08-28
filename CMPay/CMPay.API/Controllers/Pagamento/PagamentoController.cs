@@ -22,6 +22,9 @@ namespace CMPay.API.Controllers.Pagamento
             if (string.IsNullOrWhiteSpace(idempotencyKey))
                 return BadRequest("Idempotency-Key é obrigatória.");
 
+            if (idempotencyKey.Length > 100)
+                return BadRequest("Idempotency-Key deve ter no máximo 100 caracteres.");
+
             var idPagamento = await _pagamentoService.CriarPagamentoAsync(dto, idempotencyKey);
 
             return Ok(new { IDPagamento = idPagamento });

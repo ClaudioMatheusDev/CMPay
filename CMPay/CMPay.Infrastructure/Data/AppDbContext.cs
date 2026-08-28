@@ -61,12 +61,17 @@ namespace CMPay.Infrastructure.Data
                 .HasPrecision(18, 2);
 
             modelBuilder.Entity<Pagamento>()
-                .HasIndex(p => p.IdempotencyKey)    
+                .HasIndex(p => new { p.IDCliente, p.IdempotencyKey })
                 .IsUnique();
 
             modelBuilder.Entity<Pagamento>()
                 .Property(p => p.IdempotencyKey)
                 .HasMaxLength(100)
+                .IsRequired();
+
+            modelBuilder.Entity<Pagamento>()
+                .Property(p => p.PayloadHash)
+                .HasMaxLength(64)
                 .IsRequired();
         }
     }
