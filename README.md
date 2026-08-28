@@ -1,6 +1,8 @@
 # CMPay
 
-Gateway de pagamentos v1 — API REST em ASP.NET Core para gerenciar clientes, endereços, cartões e pagamentos (Pix, cartão de crédito/débito), com suporte a idempotência na criação de pagamentos.
+Gateway de pagamentos v1 — API REST em ASP.NET Core para gerenciar clientes, endereços, cartões e pagamentos (Pix, cartão de crédito/débito), com suporte a idempotência na criação de pagamentos, autenticação por API Key e validação de entrada.
+
+Projeto de estudo, focado em praticar decisões de arquitetura de um gateway de pagamentos real (idempotência, observabilidade, autenticação) além do CRUD básico.
 
 ## Stack
 
@@ -30,6 +32,21 @@ CMPay.Tests            # Testes unitários (xUnit + Moq)
 | Endereço  | `api/endereco`  | criar, buscar por ID, listar, atualizar, excluir |
 | Cartão    | `api/Cartao`    | criar, buscar por ID, listar, atualizar, excluir |
 | Pagamento | `api/pagamento` | criar (idempotente), buscar por ID, listar, detalhes (com transações), processar, cancelar, estornar |
+
+## Autenticação
+
+Toda a API exige o header `X-Api-Key`, exceto `POST /api/clientes` (cadastro público, já que é o único jeito de um cliente novo obter sua própria chave).
+
+- `POST /api/clientes` gera uma API Key aleatória para o cliente recém-criado e a devolve **uma única vez** na resposta (`{ idCliente, apiKey }`) — só o hash (SHA-256) fica persistido no banco.
+- Requisições sem a chave, ou com uma chave inválida, recebem `401`.
+- Implementado como um `AuthenticationHandler` customizado (`ApiKeyAuthenticationHandler`), integrado ao pipeline padrão do ASP.NET Core (`[Authorize]`/`[AllowAnonymous]`).
+
+## Validação de entrada
+
+- **CPF/CNPJ** (`Cliente.Documento`): validação de dígito verificador via `ValidationAttribute` customizada.
+- **E-mail** e **telefone**: `[EmailAddress]`/`[Phone]`.
+- **Cartão**: mês/ano de expiração validados via `IValidatableObject` (rejeita cartão já vencido), além do formato do mês (`[Range(1,12)]`).
+- **Enums** (`Moeda`, `TipoMetodoPagamento`): `[EnumDataType]`, pra rejeitar valores numéricos fora do enum (o `System.Text.Json` aceita qualquer inteiro em um enum por padrão).
 
 ## Idempotency-Key na criação de pagamento
 
@@ -74,11 +91,4 @@ CMPay.Tests            # Testes unitários (xUnit + Moq)
 dotnet test
 ```
 
-Cobertura atual: `ClienteService` e `PagamentoService` (incluindo cenários de replay e conflito de idempotência). Ainda sem testes para `CartaoService`, `EnderecoService`, `Transacao` e para os controllers.
-
-## Gaps conhecidos
-
-- Sem autenticação/autorização — API totalmente aberta.
-- Sem validação de formato nas DTOs (CPF/CNPJ, e-mail, dados de cartão) além das checagens de negócio nos services.
-- Sem paginação nas listagens (`GET` de coleção retorna tudo).
-- Sem CI configurado (`.github/workflows` vazio).
+Cobertura atual: `ClienteService`, `PagamentoService` (incluindo cenários de replay e conflito de idempotência), `CartaoService` e `EnderecoService`. Ainda sem testes para `Transacao`, para os controllers, nem testes de integração (`WebApplicationFactory`).
