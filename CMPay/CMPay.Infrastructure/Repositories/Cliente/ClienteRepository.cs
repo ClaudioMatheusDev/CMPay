@@ -47,5 +47,10 @@ namespace CMPay.Infrastructure.Repositories.Cliente
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task<Domain.Entities.Cliente?> BuscarPorApiKeyHashAsync(string hash)
+        {
+            return await _context.Clientes.FirstOrDefaultAsync(h => h.ApiKeyHash == hash);
+        }
     }
 }
