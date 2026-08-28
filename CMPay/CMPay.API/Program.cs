@@ -9,13 +9,24 @@ using CMPay.Infrastructure.Repositories.Cliente;
 using CMPay.Infrastructure.Repositories.Endereco;
 using CMPay.Infrastructure.Repositories.Pagamento;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+
+DotNetEnv.Env.Load();
+
+Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
+
+
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) => configuration.ReadFrom.Configuration(context.Configuration).ReadFrom.Services(services).Enrich.FromLogContext());
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 builder.Services.AddScoped<IClienteService, ClienteService>();
 builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
@@ -42,6 +53,8 @@ builder.Services.AddControllers();
 var app = builder.Build();
 
 
+
+
 if (app.Configuration.GetValue<bool>("APPLY_MIGRATIONS"))
 {
     using var scope = app.Services.CreateScope();
@@ -55,10 +68,15 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 app.Run();
