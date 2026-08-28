@@ -3,6 +3,8 @@ using CMPay.Application.Exceptions;
 using CMPay.Application.Interfaces;
 using CMPay.Domain.Entities;
 using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CMPay.Application.Services
 {
@@ -15,14 +17,19 @@ namespace CMPay.Application.Services
             _clienteRepository = clienteRepository;
         }
 
-        public async Task<int> CriarClienteAsync(ClienteCriarDto clienteCriarDto)
+        public async Task<ClienteCriadoDto> CriarClienteAsync(ClienteCriarDto clienteCriarDto)
         {
             var ClienteExiste = await _clienteRepository.BuscarPorEmailAsync(clienteCriarDto.Email);
+
+
 
             if (ClienteExiste != null)
             {
                 throw new BusinessException("Já existe um cliente com esse E-mail.");
             }
+
+            var apiKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var apiKeyHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(apiKey)));
 
             var cliente = new Cliente
             {
@@ -31,14 +38,19 @@ namespace CMPay.Application.Services
                 Email = clienteCriarDto.Email,
                 Documento = clienteCriarDto.Documento,
                 Telefone = clienteCriarDto.Telefone,
-                DataCriacao = DateTime.UtcNow
+                DataCriacao = DateTime.UtcNow,
+                ApiKeyHash = apiKeyHash
             };
 
             await _clienteRepository.AdicionarClienteAsync(cliente);
 
             await _clienteRepository.SalvarAlteracoesAsync();
 
-            return cliente.IDCliente;
+            return new ClienteCriadoDto
+            {
+                IDCliente = cliente.IDCliente,
+                ApiKey = apiKey
+            };
         }
 
         public async Task<ClienteResponseDto?> BuscarClientePorIDAsync(int IDCliente)

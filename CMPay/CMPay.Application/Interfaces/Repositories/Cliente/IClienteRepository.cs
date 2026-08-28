@@ -11,6 +11,7 @@ namespace CMPay.Application.Interfaces
         Task AdicionarClienteAsync(Cliente cliente);
         void Atualizar(Cliente cliente);
         void Remover(Cliente cliente);
+        Task<Cliente?> BuscarPorApiKeyHashAsync(string hash);
         Task SalvarAlteracoesAsync();
     }
 }

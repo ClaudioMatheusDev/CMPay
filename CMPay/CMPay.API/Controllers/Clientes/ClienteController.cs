@@ -1,5 +1,6 @@
 ﻿using CMPay.Application.DTOs;
 using CMPay.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CMPay.API.Controllers.Clientes
@@ -16,14 +17,11 @@ namespace CMPay.API.Controllers.Clientes
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> CriarCliente([FromBody] ClienteCriarDto clienteCriarDto)
         {
-            var idCliente = await _clienteService.CriarClienteAsync(clienteCriarDto);
-
-            return Ok(new
-            {
-                IDCliente = idCliente,
-            });
+            var resultado = await _clienteService.CriarClienteAsync(clienteCriarDto);
+            return Ok(resultado);
         }
 
         [HttpGet("{IDCliente:int}")]

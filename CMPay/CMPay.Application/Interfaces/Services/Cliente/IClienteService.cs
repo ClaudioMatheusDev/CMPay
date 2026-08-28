@@ -4,7 +4,7 @@ namespace CMPay.Application.Interfaces
 {
     public interface IClienteService
     {
-        Task<int> CriarClienteAsync(ClienteCriarDto clienteCriarDto);
+        Task<ClienteCriadoDto> CriarClienteAsync(ClienteCriarDto clienteCriarDto);
         Task<ClienteResponseDto> BuscarClientePorIDAsync(int IDCliente);
         Task<List<ClienteResponseDto>> BuscarTodosAsync();
         Task<bool> ApagarClienteAsync(int IDCliente);

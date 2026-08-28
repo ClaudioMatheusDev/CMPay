@@ -17,5 +17,6 @@ namespace CMPay.Domain.Entities
         public Endereco? Endereco { get; set; }
         public ICollection<Cartao>  Cartoes{get; set;} = new List<Cartao>();
         public ICollection<Pagamento> Pagamentos { get; set; } = new List<Pagamento>();
+        public string? ApiKeyHash { get; set; }
     }
 }
