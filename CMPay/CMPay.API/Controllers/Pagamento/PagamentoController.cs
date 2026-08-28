@@ -1,4 +1,4 @@
-﻿using CMPay.Application.DTOs;
+using CMPay.Application.DTOs;
 using CMPay.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,125 +15,71 @@ namespace CMPay.API.Controllers.Pagamento
             _pagamentoService = pagamentoService;
         }
 
+
         [HttpPost]
-        public async Task<IActionResult> CriarPagamento([FromBody] PagamentoCriarDto pagamentoCriarDto)
+        public async Task<IActionResult> CriarPagamento([FromHeader(Name = "Idempotency-Key")] string idempotencyKey,[FromBody] PagamentoCriarDto dto)
         {
-            try
-            {
-                var idPagamento = await _pagamentoService.CriarPagamentoAsync(pagamentoCriarDto);
-                return Ok(new { IDPagamento = idPagamento });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            if (string.IsNullOrWhiteSpace(idempotencyKey))
+                return BadRequest("Idempotency-Key é obrigatória.");
+
+            if (idempotencyKey.Length > 100)
+                return BadRequest("Idempotency-Key deve ter no máximo 100 caracteres.");
+
+            var idPagamento = await _pagamentoService.CriarPagamentoAsync(dto, idempotencyKey);
+
+            return Ok(new { IDPagamento = idPagamento });
         }
 
         [HttpGet]
         public async Task<IActionResult> ListarPagamento()
         {
-            try
-            {
-                var pagamentos = await _pagamentoService.ListarPagamentoAsync();
-                return Ok(pagamentos);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var pagamentos = await _pagamentoService.ListarPagamentoAsync();
+            return Ok(pagamentos);
         }
 
         [HttpGet("{IDPagamento:int}")]
         public async Task<IActionResult> ListarPagamentoID(int IDPagamento)
         {
-            try
-            {
-                var pagamento = await _pagamentoService.BuscarPagamentoIDAsync(IDPagamento);
-                return Ok(pagamento);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var pagamento = await _pagamentoService.BuscarPagamentoIDAsync(IDPagamento);
+            return Ok(pagamento);
         }
 
         [HttpGet("{IDPagamento:int}/detalhes")]
         public async Task<IActionResult> BuscarDetalhes(int IDPagamento)
         {
-            try
-            {
-                var detalhes =
-                    await _pagamentoService.BuscarDetalhesAsync(IDPagamento);
-
-                return Ok(detalhes);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var detalhes = await _pagamentoService.BuscarDetalhesAsync(IDPagamento);
+            return Ok(detalhes);
         }
 
         [HttpPost("{IDPagamento:int}/estornar")]
         public async Task<IActionResult> EstornarPagamento(int IDPagamento)
         {
-            try
-            {
-                await _pagamentoService.EstornarPagamentoAsync(IDPagamento);
+            await _pagamentoService.EstornarPagamentoAsync(IDPagamento);
 
-                return Ok(new
-                {
-                    message = "Pagamento estornado com sucesso."
-                });
-            }
-            catch (Exception ex)
+            return Ok(new
             {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
+                message = "Pagamento estornado com sucesso."
+            });
         }
 
         [HttpPost("{IDPagamento:int}/processar")]
         public async Task<IActionResult> ProcessarPagamento(int IDPagamento)
         {
-            try
+            await _pagamentoService.ProcessarPagamentoAsync(IDPagamento);
+            return Ok(new
             {
-                await _pagamentoService.ProcessarPagamentoAsync(IDPagamento);
-                return Ok(new
-                {
-                    message = "Processamento do pagamento concluído."
-                });
-
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
+                message = "Processamento do pagamento concluído."
+            });
         }
 
         [HttpPost("{IDPagamento:int}/cancelar")]
         public async Task<IActionResult> CancelarPagamento(int IDPagamento)
         {
-            try
+            await _pagamentoService.CancelarPagamentoAsync(IDPagamento);
+            return Ok(new
             {
-                await _pagamentoService.CancelarPagamentoAsync(IDPagamento);
-                return Ok(new
-                {
-                    message = "Cancelamento do pagamento concluído."
-                });
-
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
+                message = "Cancelamento do pagamento concluído."
+            });
         }
     }
 }

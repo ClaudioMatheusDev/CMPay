@@ -1,4 +1,5 @@
 ﻿using CMPay.Application.DTOs;
+using CMPay.Application.Exceptions;
 using CMPay.Application.Interfaces;
 using CMPay.Domain.Entities;
 
@@ -42,7 +43,7 @@ namespace CMPay.Application.Services
 
             if (endereco == null)
             {
-                throw new Exception("Nenhum endereco encontrado com esse IDEndereco.");
+                throw new NotFoundException("Nenhum endereco encontrado com esse IDEndereco.");
             }
 
             return new EnderecoResponseDto
@@ -86,7 +87,7 @@ namespace CMPay.Application.Services
 
             if (endereco == null)
             {
-                throw new Exception("Nenhum endereco encontrado com esse IDEndereco.");
+                throw new NotFoundException("Nenhum endereco encontrado com esse IDEndereco.");
             }
 
             _enderecoRepository.Remover(endereco);
@@ -102,7 +103,7 @@ namespace CMPay.Application.Services
 
             if (endereco == null)
             {
-                throw new Exception("Nenhum endereco encontrado com esse IDEndereco.");
+                throw new NotFoundException("Nenhum endereco encontrado com esse IDEndereco.");
             }
 
             endereco.IDCliente = enderecoAtualizarDto.IDCliente;

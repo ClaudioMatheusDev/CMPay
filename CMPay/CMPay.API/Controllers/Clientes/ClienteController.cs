@@ -1,12 +1,12 @@
 ﻿using CMPay.Application.DTOs;
-using CMPay.Applicatios.Interfaces;
+using CMPay.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CMPay.API.Controllers.Clientes
 {
     [ApiController]
     [Route("api/clientes")]
-    public class ClienteController : Controller
+    public class ClienteController : ControllerBase
     {
         private readonly IClienteService _clienteService;
 

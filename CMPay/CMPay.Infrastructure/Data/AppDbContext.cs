@@ -23,7 +23,7 @@ namespace CMPay.Infrastructure.Data
             modelBuilder.Entity<Cliente>()
                 .HasOne(c => c.Endereco)
                 .WithOne(e => e.Cliente)
-                .HasForeignKey<Endereco>(e => e.IDCliente) 
+                .HasForeignKey<Endereco>(e => e.IDCliente)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Cartao>()
@@ -59,6 +59,20 @@ namespace CMPay.Infrastructure.Data
             modelBuilder.Entity<Transacao>()
                 .Property(t => t.Valor)
                 .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Pagamento>()
+                .HasIndex(p => new { p.IDCliente, p.IdempotencyKey })
+                .IsUnique();
+
+            modelBuilder.Entity<Pagamento>()
+                .Property(p => p.IdempotencyKey)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            modelBuilder.Entity<Pagamento>()
+                .Property(p => p.PayloadHash)
+                .HasMaxLength(64)
+                .IsRequired();
         }
     }
 }

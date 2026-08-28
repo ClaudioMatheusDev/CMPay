@@ -1,6 +1,6 @@
 ﻿using CMPay.Application.DTOs;
+using CMPay.Application.Exceptions;
 using CMPay.Application.Interfaces;
-using CMPay.Applicatios.Interfaces;
 using CMPay.Domain.Entities;
 using System.Data;
 
@@ -21,7 +21,7 @@ namespace CMPay.Application.Services
 
             if (ClienteExiste != null)
             {
-                throw new Exception("Já existe um cliente com esse E-mail.");
+                throw new BusinessException("Já existe um cliente com esse E-mail.");
             }
 
             var cliente = new Cliente
@@ -31,7 +31,7 @@ namespace CMPay.Application.Services
                 Email = clienteCriarDto.Email,
                 Documento = clienteCriarDto.Documento,
                 Telefone = clienteCriarDto.Telefone,
-                DataCriacao = DateTime.UtcNow.AddHours(-3)
+                DataCriacao = DateTime.UtcNow
             };
 
             await _clienteRepository.AdicionarClienteAsync(cliente);
@@ -48,7 +48,7 @@ namespace CMPay.Application.Services
 
             if (cliente == null)
             {
-                throw new Exception("Nenhum cliente encontrado com esse IDCliente.");
+                throw new NotFoundException("Nenhum cliente encontrado com esse IDCliente.");
             }
 
             return new ClienteResponseDto
@@ -81,7 +81,7 @@ namespace CMPay.Application.Services
 
             if (cliente == null)
             {
-                throw new Exception("Nenhum cliente encontrado com esse IDCliente.");
+                throw new NotFoundException("Nenhum cliente encontrado com esse IDCliente.");
             }
 
             _clienteRepository.Remover(cliente);
@@ -97,15 +97,15 @@ namespace CMPay.Application.Services
 
             if (cliente == null)
             {
-                throw new Exception("Nenhum cliente encontrado com esse IDCliente.");
+                throw new NotFoundException("Nenhum cliente encontrado com esse IDCliente.");
             }
 
             var ClienteExiste =
             await _clienteRepository.BuscarPorEmailAsync(clienteAtualizarDto.Email);
 
-            if (ClienteExiste != null)
+            if (ClienteExiste != null && ClienteExiste.IDCliente != IDCliente)
             {
-                throw new Exception("Já existe um cliente com esse E-mail.");
+                throw new BusinessException("Já existe um cliente com esse E-mail.");
             }
 
             cliente.Nome = clienteAtualizarDto.Nome;
@@ -113,7 +113,7 @@ namespace CMPay.Application.Services
             cliente.Documento = clienteAtualizarDto.Documento;
             cliente.Email = clienteAtualizarDto.Email;
             cliente.DataNascimento = clienteAtualizarDto.DataNascimento;
-            cliente.DataAtualizacao = DateTime.UtcNow.AddHours(-3);
+            cliente.DataAtualizacao = DateTime.UtcNow;
 
             await _clienteRepository.SalvarAlteracoesAsync();
 

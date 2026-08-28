@@ -1,7 +1,12 @@
 ﻿using CMPay.Application.DTOs;
+using CMPay.Application.Exceptions;
 using CMPay.Application.Interfaces;
 using CMPay.Domain.Entities;
 using CMPay.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace CMPay.Application.Services
 {
@@ -30,23 +35,53 @@ namespace CMPay.Application.Services
                 TipoMetodoPagamento.Pix => 0.01m,
                 TipoMetodoPagamento.CartaoCredito => 0.03m,
                 TipoMetodoPagamento.CartaoDebito => 0.02m,
-                _ => throw new Exception("Método de pagamento inválido.")
+                _ => throw new BusinessException("Método de pagamento inválido.")
             };
         }
 
-        public async Task<int> CriarPagamentoAsync(PagamentoCriarDto pagamentoCriarDto)
+        private static string CalcularPayloadHash(PagamentoCriarDto pagamentoCriarDto)
         {
+            var payloadCanonico = JsonSerializer.Serialize(new
+            {
+                pagamentoCriarDto.IDCliente,
+                pagamentoCriarDto.ValorBruto,
+                pagamentoCriarDto.Moeda,
+                pagamentoCriarDto.TipoMetodoPagamento
+            });
+
+            var bytesHash = SHA256.HashData(Encoding.UTF8.GetBytes(payloadCanonico));
+            return Convert.ToHexString(bytesHash);
+        }
+
+        public async Task<int> CriarPagamentoAsync(PagamentoCriarDto pagamentoCriarDto, string idempotencyKey)
+        {
+            var payloadHash = CalcularPayloadHash(pagamentoCriarDto);
+
+            var pagamentoExistente = await _pagamentoRepository.BuscarPorIdempotencyKeyAsync(
+                pagamentoCriarDto.IDCliente, idempotencyKey);
+
+            if (pagamentoExistente != null)
+            {
+                if (pagamentoExistente.PayloadHash != payloadHash)
+                {
+                    throw new ConflictException(
+                        "Essa Idempotency-Key já foi usada com um payload diferente.");
+                }
+
+                return pagamentoExistente.IDPagamento;
+            }
+
             var clienteExiste =
                 await _clienteRepository.BuscarPorIDAsync(pagamentoCriarDto.IDCliente);
 
             if (clienteExiste == null)
             {
-                throw new Exception("Não existe um cliente com esse ID.");
+                throw new NotFoundException("Não existe um cliente com esse ID.");
             }
 
             if (pagamentoCriarDto.ValorBruto <= 0)
             {
-                throw new Exception("Valor não pode ser igual ou menor que ZERO.");
+                throw new BusinessException("Valor não pode ser igual ou menor que ZERO.");
             }
 
             var percentualTaxa =
@@ -71,11 +106,35 @@ namespace CMPay.Application.Services
                 Moeda = pagamentoCriarDto.Moeda,
                 TipoMetodoPagamento = pagamentoCriarDto.TipoMetodoPagamento,
                 StatusPagamento = StatusPagamento.Pendente,
-                DataCriacao = DateTime.UtcNow
+                DataCriacao = DateTime.UtcNow,
+                IdempotencyKey = idempotencyKey,
+                PayloadHash = payloadHash
             };
 
             await _pagamentoRepository.AdicionarAsync(pagamento);
-            await _pagamentoRepository.SalvarAlteracoesAsync();
+
+            try
+            {
+                await _pagamentoRepository.SalvarAlteracoesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Duas requisições concorrentes com a mesma Idempotency-Key: o índice único
+                // (IDCliente, IdempotencyKey) rejeita a segunda gravação. Trata como replay.
+                var pagamentoConcorrente = await _pagamentoRepository.BuscarPorIdempotencyKeyAsync(
+                    pagamentoCriarDto.IDCliente, idempotencyKey);
+
+                if (pagamentoConcorrente == null)
+                    throw;
+
+                if (pagamentoConcorrente.PayloadHash != payloadHash)
+                {
+                    throw new ConflictException(
+                        "Essa Idempotency-Key já foi usada com um payload diferente.");
+                }
+
+                return pagamentoConcorrente.IDPagamento;
+            }
 
             return pagamento.IDPagamento;
         }
@@ -86,7 +145,7 @@ namespace CMPay.Application.Services
 
             if (pagamento == null)
             {
-                throw new Exception("Não foi encontrado nenhum pagamento com esse ID.");
+                throw new NotFoundException("Não foi encontrado nenhum pagamento com esse ID.");
             }
 
             return new PagamentoResponseDto
@@ -133,7 +192,7 @@ namespace CMPay.Application.Services
 
             if (pagamento == null)
             {
-                throw new Exception("Não foi encontrado nenhum pagamento com esse ID.");
+                throw new NotFoundException("Não foi encontrado nenhum pagamento com esse ID.");
             }
 
             var transacoes =
@@ -177,12 +236,12 @@ namespace CMPay.Application.Services
 
             if (pagamento is null)
             {
-                throw new Exception("Nenhum pagamento foi encontrado para esse ID.");
+                throw new NotFoundException("Nenhum pagamento foi encontrado para esse ID.");
             }
 
             if (pagamento.StatusPagamento != StatusPagamento.Aprovado)
             {
-                throw new Exception("Somente pagamentos aprovados podem ser estornados.");
+                throw new BusinessException("Somente pagamentos aprovados podem ser estornados.");
             }
 
             pagamento.StatusPagamento = StatusPagamento.Reembolsado;
@@ -201,9 +260,7 @@ namespace CMPay.Application.Services
 
 
             await _transacaoRepository.AdicionarAsync(transacao);
-            await _transacaoRepository.SalvarAlteracoesAsync();
-
-
+            await _pagamentoRepository.SalvarAlteracoesAsync();
 
             return true;
         }
@@ -215,12 +272,12 @@ namespace CMPay.Application.Services
 
             if (pagamento is null)
             {
-                throw new Exception("Nenhum pagamento foi encontrado para esse ID.");
+                throw new NotFoundException("Nenhum pagamento foi encontrado para esse ID.");
             }
 
             if (pagamento.StatusPagamento != StatusPagamento.Pendente)
             {
-                throw new Exception("Somente pagamentos pendentes podem ser processados.");
+                throw new BusinessException("Somente pagamentos pendentes podem ser processados.");
             }
 
             var transacao = new Transacao
@@ -253,7 +310,7 @@ namespace CMPay.Application.Services
 
 
             await _transacaoRepository.AdicionarAsync(transacao);
-            await _transacaoRepository.SalvarAlteracoesAsync();
+            await _pagamentoRepository.SalvarAlteracoesAsync();
 
             return true;
         }
@@ -264,12 +321,12 @@ namespace CMPay.Application.Services
 
             if (pagamento is null)
             {
-                throw new Exception("Nenhum pagamento foi encontrado para esse ID.");
+                throw new NotFoundException("Nenhum pagamento foi encontrado para esse ID.");
             }
 
             if (pagamento.StatusPagamento != StatusPagamento.Pendente)
             {
-                throw new Exception("Somente pagamentos pendentes podem ser cancelados.");
+                throw new BusinessException("Somente pagamentos pendentes podem ser cancelados.");
             }
 
             pagamento.StatusPagamento = StatusPagamento.Cancelado;
@@ -286,7 +343,7 @@ namespace CMPay.Application.Services
             };
 
             await _transacaoRepository.AdicionarAsync(transacao);
-            await _transacaoRepository.SalvarAlteracoesAsync();
+            await _pagamentoRepository.SalvarAlteracoesAsync();
 
             return true;
 

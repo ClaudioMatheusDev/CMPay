@@ -1,4 +1,4 @@
-﻿using CMPay.Application.DTOs;
+using CMPay.Application.DTOs;
 using CMPay.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,7 +6,7 @@ namespace CMPay.API.Controllers.Cartao
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class CartaoController : Controller
+    public class CartaoController : ControllerBase
     {
         private readonly ICartaoService _cartaoService;
 
@@ -19,72 +19,37 @@ namespace CMPay.API.Controllers.Cartao
         [HttpPost]
         public async Task<IActionResult> CriarCartaoAsync([FromBody] CartaoCriarDto cartaoCriarDto)
         {
-            try
-            {
-                var idCartao = await _cartaoService.CriarCartaoAsync(cartaoCriarDto);
-                return Ok(new { IDCartao = idCartao });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var idCartao = await _cartaoService.CriarCartaoAsync(cartaoCriarDto);
+            return Ok(new { IDCartao = idCartao });
         }
 
-        [HttpGet("{IDCartao}:int")]
+        [HttpGet("{IDCartao:int}")]
         public async Task<IActionResult> BuscarCartaoPorIDAsync(int IDCartao)
         {
-            try
-            {
-                var cartao = await _cartaoService.BuscarCartaoPorIDAsync(IDCartao);
-                return Ok(cartao);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var cartao = await _cartaoService.BuscarCartaoPorIDAsync(IDCartao);
+            return Ok(cartao);
         }
 
         [HttpGet]
         public async Task<IActionResult> BuscarTodosCartoesAsync()
         {
-            try
-            {
-                var cartoes = await _cartaoService.BuscarTodosAsync();
-                return Ok(cartoes);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var cartoes = await _cartaoService.BuscarTodosAsync();
+            return Ok(cartoes);
         }
 
 
-        [HttpDelete("{IDCartao}:int")]
+        [HttpDelete("{IDCartao:int}")]
         public async Task<IActionResult> ExcluirCartaoAsync(int IDCartao)
         {
-            try
-            {
-                await _cartaoService.ApagarCartaoAsync(IDCartao);
-                return Ok(new { message = "Cartão excluído com sucesso." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _cartaoService.ApagarCartaoAsync(IDCartao);
+            return Ok(new { message = "Cartão excluído com sucesso." });
         }
 
-        [HttpPut("{IDCartao}:int")]
+        [HttpPut("{IDCartao:int}")]
         public async Task<IActionResult> AtualizarCartaoAsync(int IDCartao, [FromBody] CartaoAtualizarDto cartaoAtualizarDto)
         {
-            try
-            {
-                await _cartaoService.AtualizarCartaoAsync(IDCartao, cartaoAtualizarDto);
-                return Ok(new { message = "Cartão atualizado com sucesso." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _cartaoService.AtualizarCartaoAsync(IDCartao, cartaoAtualizarDto);
+            return Ok(new { message = "Cartão atualizado com sucesso." });
         }
     }
 }
