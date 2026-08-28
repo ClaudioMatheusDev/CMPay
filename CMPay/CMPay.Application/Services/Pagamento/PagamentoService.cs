@@ -3,6 +3,10 @@ using CMPay.Application.Exceptions;
 using CMPay.Application.Interfaces;
 using CMPay.Domain.Entities;
 using CMPay.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace CMPay.Application.Services
 {
@@ -35,15 +39,40 @@ namespace CMPay.Application.Services
             };
         }
 
-        public async Task<int> CriarPagamentoAsync(PagamentoCriarDto pagamentoCriarDto)
+        private static string CalcularPayloadHash(PagamentoCriarDto pagamentoCriarDto)
         {
-            var clienteExiste =
-                await _clienteRepository.BuscarPorIDAsync(pagamentoCriarDto.IDCliente);
+            var payloadCanonico = JsonSerializer.Serialize(new
+            {
+                pagamentoCriarDto.IDCliente,
+                pagamentoCriarDto.ValorBruto,
+                pagamentoCriarDto.Moeda,
+                pagamentoCriarDto.TipoMetodoPagamento
+            });
 
-            var pagamentoExistente = await _pagamentoRepository.BuscarPorIdempotencyKeyAsync(pagamentoCriarDto.IdempotencyKey);
+            var bytesHash = SHA256.HashData(Encoding.UTF8.GetBytes(payloadCanonico));
+            return Convert.ToHexString(bytesHash);
+        }
+
+        public async Task<int> CriarPagamentoAsync(PagamentoCriarDto pagamentoCriarDto, string idempotencyKey)
+        {
+            var payloadHash = CalcularPayloadHash(pagamentoCriarDto);
+
+            var pagamentoExistente = await _pagamentoRepository.BuscarPorIdempotencyKeyAsync(
+                pagamentoCriarDto.IDCliente, idempotencyKey);
 
             if (pagamentoExistente != null)
+            {
+                if (pagamentoExistente.PayloadHash != payloadHash)
+                {
+                    throw new ConflictException(
+                        "Essa Idempotency-Key já foi usada com um payload diferente.");
+                }
+
                 return pagamentoExistente.IDPagamento;
+            }
+
+            var clienteExiste =
+                await _clienteRepository.BuscarPorIDAsync(pagamentoCriarDto.IDCliente);
 
             if (clienteExiste == null)
             {
@@ -77,11 +106,35 @@ namespace CMPay.Application.Services
                 Moeda = pagamentoCriarDto.Moeda,
                 TipoMetodoPagamento = pagamentoCriarDto.TipoMetodoPagamento,
                 StatusPagamento = StatusPagamento.Pendente,
-                DataCriacao = DateTime.UtcNow
+                DataCriacao = DateTime.UtcNow,
+                IdempotencyKey = idempotencyKey,
+                PayloadHash = payloadHash
             };
 
             await _pagamentoRepository.AdicionarAsync(pagamento);
-            await _pagamentoRepository.SalvarAlteracoesAsync();
+
+            try
+            {
+                await _pagamentoRepository.SalvarAlteracoesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Duas requisições concorrentes com a mesma Idempotency-Key: o índice único
+                // (IDCliente, IdempotencyKey) rejeita a segunda gravação. Trata como replay.
+                var pagamentoConcorrente = await _pagamentoRepository.BuscarPorIdempotencyKeyAsync(
+                    pagamentoCriarDto.IDCliente, idempotencyKey);
+
+                if (pagamentoConcorrente == null)
+                    throw;
+
+                if (pagamentoConcorrente.PayloadHash != payloadHash)
+                {
+                    throw new ConflictException(
+                        "Essa Idempotency-Key já foi usada com um payload diferente.");
+                }
+
+                return pagamentoConcorrente.IDPagamento;
+            }
 
             return pagamento.IDPagamento;
         }

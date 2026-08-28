@@ -21,5 +21,6 @@ namespace CMPay.Domain.Entities
         public Cliente Cliente { get; set; } = null!;
         public ICollection<Transacao> Transacoes { get; set; } = new List<Transacao>();
         public string IdempotencyKey { get; set; } = null!;
+        public string PayloadHash { get; set; } = null!;
     }
 }

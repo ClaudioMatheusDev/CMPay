@@ -5,9 +5,31 @@ using CMPay.Application.Services;
 using CMPay.Domain.Entities;
 using CMPay.Domain.Enums;
 using Moq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace CMPay.Tests.Services
 {
+    // Replica o cálculo de hash privado de PagamentoService para montar cenários de
+    // teste (payload igual/diferente) sem expor o método de produção.
+    internal static class PagamentoServiceTestsHashHelper
+    {
+        public static string CalcularHash(PagamentoCriarDto dto)
+        {
+            var payloadCanonico = JsonSerializer.Serialize(new
+            {
+                dto.IDCliente,
+                dto.ValorBruto,
+                dto.Moeda,
+                dto.TipoMetodoPagamento
+            });
+
+            var bytesHash = SHA256.HashData(Encoding.UTF8.GetBytes(payloadCanonico));
+            return Convert.ToHexString(bytesHash);
+        }
+    }
+
     public class PagamentoServiceTests
     {
         private static Cliente CriarCliente() => new()
@@ -37,6 +59,9 @@ namespace CMPay.Tests.Services
 
             var pagamentoRepositorio = new Mock<IPagamentoRepository>();
             pagamentoRepositorio
+                .Setup(r => r.BuscarPorIdempotencyKeyAsync(It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync((Pagamento?)null);
+            pagamentoRepositorio
                 .Setup(r => r.AdicionarAsync(It.IsAny<Pagamento>()))
                 .Callback<Pagamento>(p => p.IDPagamento = 1)
                 .Returns(Task.CompletedTask);
@@ -61,11 +86,89 @@ namespace CMPay.Tests.Services
                 .Callback<Pagamento>(p => pagamentoCriado = p)
                 .Returns(Task.CompletedTask);
 
-            await servico.CriarPagamentoAsync(dto);
+            await servico.CriarPagamentoAsync(dto, "chave-idempotencia-1");
 
             Assert.NotNull(pagamentoCriado);
             Assert.Equal(1m, pagamentoCriado!.ValorTaxa);
             Assert.Equal(99m, pagamentoCriado.ValorLiquido);
+        }
+
+        [Fact]
+        public async Task CriarPagamentoAsync_MesmaChaveMesmoPayload_DeveRetornarPagamentoExistenteSemCriarNovo()
+        {
+            var dto = new PagamentoCriarDto
+            {
+                IDCliente = 1,
+                ValorBruto = 100m,
+                Moeda = TipoMoeda.BRL,
+                TipoMetodoPagamento = TipoMetodoPagamento.Pix
+            };
+
+            var pagamentoExistente = new Pagamento
+            {
+                IDPagamento = 42,
+                IDCliente = 1,
+                IdempotencyKey = "chave-repetida",
+                PayloadHash = PagamentoServiceTestsHashHelper.CalcularHash(dto)
+            };
+
+            var pagamentoRepositorio = new Mock<IPagamentoRepository>();
+            pagamentoRepositorio
+                .Setup(r => r.BuscarPorIdempotencyKeyAsync(1, "chave-repetida"))
+                .ReturnsAsync(pagamentoExistente);
+
+            var servico = new PagamentoService(
+                pagamentoRepositorio.Object,
+                Mock.Of<IClienteRepository>(),
+                Mock.Of<ITransacaoRepository>(),
+                Mock.Of<IProcessadorPagamento>());
+
+            var idPagamento = await servico.CriarPagamentoAsync(dto, "chave-repetida");
+
+            Assert.Equal(42, idPagamento);
+            pagamentoRepositorio.Verify(r => r.AdicionarAsync(It.IsAny<Pagamento>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CriarPagamentoAsync_MesmaChavePayloadDiferente_DeveLancarConflictException()
+        {
+            var dtoOriginal = new PagamentoCriarDto
+            {
+                IDCliente = 1,
+                ValorBruto = 100m,
+                Moeda = TipoMoeda.BRL,
+                TipoMetodoPagamento = TipoMetodoPagamento.Pix
+            };
+
+            var dtoConflitante = new PagamentoCriarDto
+            {
+                IDCliente = 1,
+                ValorBruto = 200m,
+                Moeda = TipoMoeda.BRL,
+                TipoMetodoPagamento = TipoMetodoPagamento.Pix
+            };
+
+            var pagamentoExistente = new Pagamento
+            {
+                IDPagamento = 42,
+                IDCliente = 1,
+                IdempotencyKey = "chave-repetida",
+                PayloadHash = PagamentoServiceTestsHashHelper.CalcularHash(dtoOriginal)
+            };
+
+            var pagamentoRepositorio = new Mock<IPagamentoRepository>();
+            pagamentoRepositorio
+                .Setup(r => r.BuscarPorIdempotencyKeyAsync(1, "chave-repetida"))
+                .ReturnsAsync(pagamentoExistente);
+
+            var servico = new PagamentoService(
+                pagamentoRepositorio.Object,
+                Mock.Of<IClienteRepository>(),
+                Mock.Of<ITransacaoRepository>(),
+                Mock.Of<IProcessadorPagamento>());
+
+            await Assert.ThrowsAsync<ConflictException>(
+                () => servico.CriarPagamentoAsync(dtoConflitante, "chave-repetida"));
         }
 
         [Fact]
