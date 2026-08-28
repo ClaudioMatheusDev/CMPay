@@ -2,7 +2,7 @@
 {
     public enum TipoMoeda
     {
-        BRL = 0,
+        BRL = 1,
         USD = 2,
         EUR = 3
     }
