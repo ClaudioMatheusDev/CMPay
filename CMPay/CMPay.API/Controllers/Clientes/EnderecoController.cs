@@ -1,14 +1,12 @@
 ﻿using CMPay.Application.DTOs;
 using CMPay.Application.Interfaces;
-using CMPay.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
-using System.Formats.Asn1;
 
 namespace CMPay.API.Controllers.Clientes
 {
     [ApiController]
     [Route("api/endereco")]
-    public class EnderecoController : Controller
+    public class EnderecoController : ControllerBase
     {
 
         private readonly IEnderecoService _enderecoService;
