@@ -15,10 +15,15 @@ namespace CMPay.API.Controllers.Pagamento
             _pagamentoService = pagamentoService;
         }
 
+
         [HttpPost]
-        public async Task<IActionResult> CriarPagamento([FromBody] PagamentoCriarDto pagamentoCriarDto)
+        public async Task<IActionResult> CriarPagamento([FromHeader(Name = "Idempotency-Key")] string idempotencyKey,[FromBody] PagamentoCriarDto dto)
         {
-            var idPagamento = await _pagamentoService.CriarPagamentoAsync(pagamentoCriarDto);
+            if (string.IsNullOrWhiteSpace(idempotencyKey))
+                return BadRequest("Idempotency-Key é obrigatória.");
+
+            var idPagamento = await _pagamentoService.CriarPagamentoAsync(dto, idempotencyKey);
+
             return Ok(new { IDPagamento = idPagamento });
         }
 

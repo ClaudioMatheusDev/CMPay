@@ -40,6 +40,11 @@ namespace CMPay.Application.Services
             var clienteExiste =
                 await _clienteRepository.BuscarPorIDAsync(pagamentoCriarDto.IDCliente);
 
+            var pagamentoExistente = await _pagamentoRepository.BuscarPorIdempotencyKeyAsync(pagamentoCriarDto.IdempotencyKey);
+
+            if (pagamentoExistente != null)
+                return pagamentoExistente.IDPagamento;
+
             if (clienteExiste == null)
             {
                 throw new NotFoundException("Não existe um cliente com esse ID.");
